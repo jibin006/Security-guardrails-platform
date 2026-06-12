@@ -1,1 +1,1 @@
-# terraform-secure-modules
+# security-guardrails-platform
