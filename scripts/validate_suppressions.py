@@ -64,3 +64,18 @@ if __name__ == "__main__":
     import json
     with open("findings/valid_suppressions.json", "w") as f:
         json.dump(list(valid.keys()), f)
+
+def load_suppressions():
+    try:
+        with open("findings/valid_suppressions.json") as f:
+            content = f.read().strip()
+
+            if not content:
+                print("[WARN] valid_suppressions.json is empty")
+                return []
+
+            return json.loads(content)
+
+    except FileNotFoundError:
+        print("[WARN] valid_suppressions.json not found")
+        return []        
