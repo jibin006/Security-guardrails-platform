@@ -96,3 +96,34 @@ jobs:
       - name: Validate SAST Findings
         run: |
           python scripts/check_sast.py
+
+  dependency-scan:
+    name: Dependency Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pip-audit
+        run: |
+          pip install pip-audit
+
+      - name: Create Findings Directory
+        run: mkdir -p findings
+
+      - name: Run Dependency Scan
+        run: |
+          pip-audit \
+            -r requirements.txt \
+            --format json \
+            --output findings/sca_findings.json || true
+
+      - name: Validate Dependency Findings
+        run: |
+          python scripts/check_dependencies.py
