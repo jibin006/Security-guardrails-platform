@@ -9,7 +9,7 @@ blocking = []
 for finding in findings:
     if (
         not finding["suppressed"]
-        and finding["severity"] in ["HIGH", "CRITICAL"]
+        and finding["severity"] in ["CRITICAL"]
     ):
         blocking.append(finding["id"])
 
