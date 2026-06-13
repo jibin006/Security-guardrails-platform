@@ -154,32 +154,30 @@ Local tooling provides feedback.
 CI/CD provides enforcement.
 
 ---
-
 # Failure 5 — detect-secrets False Positive Investigation
 
 ## Problem
+detect-secrets flagged an AWS Access Key inside insecure.tf.
 
-detect-secrets flagged:
-
-```text
-AWS Access Key
-```
-
-inside Terraform.
-
-## Investigation
-
-Reviewed source file and verified whether a real credential existed.
+## Root Cause
+The Terraform file contained a hardcoded fake AWS key string
+intentionally placed as a vulnerable pattern. detect-secrets
+pattern-matched on the key format, not on whether it was real.
 
 ## Resolution
+Confirmed this was a true positive for the build — the file
+intentionally contains a vulnerable pattern. Finding correctly
+appears as SECRET-001 in the pipeline output.
 
-Confirmed scanner behavior and findings workflow.
+The suppression flow was validated by adding SECRET-001 to
+suppressions.yaml with a ticket reference and confirming
+the gate moved it from OPEN to SUPPRESSED.
 
 ## Lesson
-
-Security scanners require validation and triage rather than blind trust.
-
----
+detect-secrets cannot distinguish between real credentials
+and test credentials with valid key format. Suppression
+governance is the correct mechanism for managing intentional
+test patterns, not scanner tuning.
 
 # Failure 6 — Dependency Resolver Conflict
 
