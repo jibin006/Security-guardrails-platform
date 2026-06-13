@@ -5,8 +5,8 @@ try:
     with open("findings/sca_findings.json") as f:
         data = json.load(f)
 except FileNotFoundError:
-    print("[PASS] No dependency findings file")
-    sys.exit(0)
+    print("[FAIL] Dependency findings file missing")
+    sys.exit(1)
 
 vulnerabilities = data.get("dependencies", [])
 critical_count = 0

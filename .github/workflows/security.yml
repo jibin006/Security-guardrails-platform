@@ -29,7 +29,8 @@ jobs:
           sudo mv conftest /usr/local/bin/
 
       - name: Generate Terraform JSON
-        run: python scripts/tf_to_json.py
+        run: |
+          python scripts/tf_to_json.py
 
       - name: Run OPA Policy Check
         run: |
@@ -53,7 +54,8 @@ jobs:
           pip install detect-secrets
 
       - name: Create Findings Directory
-        run: mkdir -p findings
+        run: |
+          mkdir -p findings
 
       - name: Scan for Secrets
         run: |
@@ -83,7 +85,8 @@ jobs:
           pip install semgrep
 
       - name: Create Findings Directory
-        run: mkdir -p findings
+        run: |
+          mkdir -p findings
 
       - name: Run Semgrep
         run: |
@@ -115,7 +118,8 @@ jobs:
           pip install pip-audit
 
       - name: Create Findings Directory
-        run: mkdir -p findings
+        run: |
+          mkdir -p findings
 
       - name: Run Dependency Scan
         run: |
@@ -127,3 +131,48 @@ jobs:
       - name: Validate Dependency Findings
         run: |
           python scripts/check_dependencies.py
+
+  suppression-validation:
+    name: Suppression Governance
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          pip install pyyaml
+
+      - name: Validate Suppressions
+        run: |
+          python scripts/validate_suppressions.py
+
+  remediation-enrichment:
+    name: Remediation Enrichment
+    runs-on: ubuntu-latest
+
+    needs:
+      - suppression-validation
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          pip install pyyaml
+
+      - name: Enrich Findings
+        run: |
+          python scripts/enrich.py

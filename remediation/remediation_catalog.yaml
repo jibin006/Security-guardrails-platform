@@ -1,0 +1,69 @@
+S3-001:
+  title: S3 Bucket Encryption Missing
+  severity: HIGH
+  risk: >
+    Data stored in S3 without encryption is exposed if bucket 
+    access controls are misconfigured or credentials are compromised.
+  fix: >
+    Add server_side_encryption_configuration block to aws_s3_bucket resource.
+    Use AES256 or aws:kms encryption algorithm.
+  example: |
+    resource "aws_s3_bucket_server_side_encryption_configuration" "example" {
+      bucket = aws_s3_bucket.demo.id
+      rule {
+        apply_server_side_encryption_by_default {
+          sse_algorithm = "AES256"
+        }
+      }
+    }
+  reference: "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_server_side_encryption_configuration"
+  standard: "SOC2-CC6.1"
+
+SAST-001:
+  title: Command Injection via subprocess
+  severity: HIGH
+  risk: >
+    Passing user-controlled input to subprocess with shell=True allows
+    arbitrary command execution on the host system.
+  fix: >
+    Remove shell=True. Pass arguments as a list instead of a string.
+    Validate and sanitize all user input before system calls.
+  reference: "https://semgrep.dev/docs/writing-rules/rule-ideas/"
+  standard: "OWASP-A03"
+
+SAST-002:
+  title: Code Injection via eval()
+  severity: HIGH
+  risk: >
+    eval() executes arbitrary Python code. Passing untrusted input
+    allows complete system compromise.
+  fix: >
+    Remove eval(). Use ast.literal_eval() for safe literal parsing.
+    Redesign logic to avoid dynamic code execution.
+  reference: "https://bandit.readthedocs.io/"
+  standard: "OWASP-A03"
+
+SECRET-001:
+  title: Hardcoded AWS Credentials
+  severity: CRITICAL
+  risk: >
+    Hardcoded AWS credentials in source code expose cloud infrastructure
+    to unauthorized access. Credentials committed to Git cannot be
+    reliably revoked even after removal.
+  fix: >
+    Remove credentials immediately. Rotate affected keys in AWS IAM.
+    Use environment variables or AWS Secrets Manager for credential storage.
+  reference: "https://docs.aws.amazon.com/secretsmanager/"
+  standard: "SOC2-CC6.3"
+
+SCA-001:
+  title: Vulnerable Dependency Detected
+  severity: HIGH
+  risk: >
+    Using packages with known CVEs exposes the application to
+    documented attack vectors with public exploit code available.
+  fix: >
+    Upgrade to the fixed version specified in the CVE advisory.
+    Pin dependency versions in requirements.txt after upgrade.
+  reference: "https://pypi.org/project/pip-audit/"
+  standard: "NIST-SI-2"
