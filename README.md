@@ -1,5 +1,6 @@
 # security-guardrails-platform
 
+---text
 OPA
 Secrets
 SAST
@@ -22,3 +23,4 @@ Security Gate
    │
    ▼
 PASS / FAIL
+---
