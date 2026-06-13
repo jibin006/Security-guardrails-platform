@@ -28,9 +28,15 @@ jobs:
           tar xzf conftest_0.68.2_Linux_x86_64.tar.gz
           sudo mv conftest /usr/local/bin/
 
+      - name: Debug Conftest Output
+        if: always()
+        run: |
+          echo "=== conftest_raw.json ==="
+          cat findings/conftest_raw.json || echo "FILE NOT FOUND OR EMPTY"   
+
       - name: Generate Terraform JSON
         run: |
-          python scripts/tf_to_json.py
+          python scripts/tf_to_json.py    
 
       - name: Generate OPA Findings JSON
         if: always()
