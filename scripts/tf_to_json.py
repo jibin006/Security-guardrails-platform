@@ -1,28 +1,31 @@
 import json
 
-# Simulates parsed Terraform plan for Conftest
-# Mirrors all intentionally vulnerable resources in insecure.tf
-
 terraform_config = {
     "resource": {
 
         # S3-001 — Missing encryption
         "aws_s3_bucket": {
             "demo": {
-                "bucket": "my-demo-bucket"
-            },
-            # S3-002 — Public read access
-            "public_bucket": {
-            "bucket": "my-public-bucket",
-             "acl": "public-read",
-             "server_side_encryption_configuration": {
-             "rule": {
-            "apply_server_side_encryption_by_default": {
-                "sse_algorithm": "AES256"
+                "bucket": "my-demo-bucket",  
+                "server_side_encryption_configuration": {
+                    "rule": {
+                        "apply_server_side_encryption_by_default": {
+                            "sse_algorithm": "AES256"
+                        }
+                    }
+                }
+            },  
+            "public_bucket": {  
+                "bucket": "my-public-bucket",
+                "acl": "public-read",
+                "server_side_encryption_configuration": {
+                    "rule": {
+                        "apply_server_side_encryption_by_default": {
+                            "sse_algorithm": "AES256"
+                        }
+                    }
+                }
             }
-        }
-    }
-}
         },
 
         # IAM-001 — Wildcard action in policy
@@ -65,12 +68,7 @@ terraform_config = {
         },
 
         # LOG-001 fires because aws_cloudtrail is intentionally absent
-        "aws_cloudtrail": {
-           "main": {
-             "name": "org-trail",
-             "s3_bucket_name": "log-bucket"
-            }
-        }
+
     }
 }
 
