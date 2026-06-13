@@ -285,6 +285,11 @@ jobs:
         run: |
           python scripts/enrich.py
 
+      - name: Debug Enriched Findings
+        run: |
+         echo "=== findings.json ==="
+         cat findings/findings.json    
+
       - name: Upload Enriched Findings
         uses: actions/upload-artifact@v4
         with:
