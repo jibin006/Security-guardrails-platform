@@ -164,10 +164,6 @@ jobs:
     runs-on: ubuntu-latest
 
     needs:
-      - policy-as-code
-      - secrets-detection
-      - sast
-      - dependency-scan
       - suppression-validation
 
     steps:
