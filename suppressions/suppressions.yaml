@@ -4,16 +4,13 @@
 
 suppressions:
 
-  - id: SAST-003
+  - id: IAM-002
     owner: platform-team
-    reason: >
-      pickle.loads() used only with internally serialized data from
-      trusted pipeline artifacts. External input never reaches this function.
-      Tracked in risk register RR-2025-019.
-    expiry: "2027-03-01"
+    reason: "Testing never-suppress enforcement — should be rejected"
+    expiry: "2027-01-01"
     approver: security-team
     approved_date: "2025-07-01"
-    ticket: "SEC-1847"
+    ticket: "SEC-TEST-003"
 
 
 

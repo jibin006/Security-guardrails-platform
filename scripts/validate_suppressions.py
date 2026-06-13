@@ -1,6 +1,15 @@
 import yaml
 import sys
+import json
 from datetime import date
+
+# Findings that can never be suppressed regardless of ticket or approver
+NEVER_SUPPRESS = [
+    "IAM-002",                           # Root access key — account takeover risk
+    "semgrep.SAST-001-command-injection", # RCE — no compensating control acceptable
+    "SECRET-001",                         # Hardcoded credentials — immediate rotation required
+    "SECRET-002",                         # Hardcoded credentials — immediate rotation required
+]
 
 def validate_suppressions(suppression_file):
     with open(suppression_file) as f:
@@ -8,7 +17,7 @@ def validate_suppressions(suppression_file):
 
     suppressions = data.get("suppressions", [])
     required_fields = ["id", "owner", "reason", "expiry", "approver", "ticket"]
-    
+
     errors = []
     valid = {}
 
@@ -16,14 +25,23 @@ def validate_suppressions(suppression_file):
 
     for supp in suppressions:
         supp_id = supp.get("id", "UNKNOWN")
-        
-        # Check required fields
+
+        # Never-suppress check runs before any other validation
+        if supp_id in NEVER_SUPPRESS:
+            errors.append(
+                f"{supp_id}: Finding is on the never-suppress list. "
+                f"This finding cannot be suppressed regardless of ticket or approver. "
+                f"Escalate to security-team for architectural remediation."
+            )
+            continue
+
+        # Required fields
         missing = [f for f in required_fields if not supp.get(f)]
         if missing:
             errors.append(f"{supp_id}: Missing required fields: {missing}")
             continue
 
-        # Check expiry
+        # Expiry format and date check
         try:
             expiry = date.fromisoformat(supp["expiry"])
         except ValueError:
@@ -45,7 +63,7 @@ def validate_suppressions(suppression_file):
         print(f"    Expires:  {supp['expiry']} ({days_remaining} days remaining)")
         print(f"    Reason:   {supp['reason'][:60].strip()}...")
         print()
-        
+
         valid[supp_id] = supp
 
     if errors:
@@ -60,22 +78,19 @@ def validate_suppressions(suppression_file):
 
 if __name__ == "__main__":
     valid = validate_suppressions("suppressions/suppressions.yaml")
-    
-    import json
+
     with open("findings/valid_suppressions.json", "w") as f:
         json.dump(list(valid.keys()), f)
+
 
 def load_suppressions():
     try:
         with open("findings/valid_suppressions.json") as f:
             content = f.read().strip()
-
             if not content:
                 print("[WARN] valid_suppressions.json is empty")
                 return []
-
             return json.loads(content)
-
     except FileNotFoundError:
         print("[WARN] valid_suppressions.json not found")
-        return []        
+        return []
