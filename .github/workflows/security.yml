@@ -114,7 +114,7 @@ jobs:
             --config semgrep/custom-rules.yml \
             --json \
             --output findings/sast_findings.json \
-            scripts/vulnerable_app.py
+            scripts/vulnerable_app.py || true
 
       - name: Validate SAST Findings
         run: |
