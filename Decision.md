@@ -266,38 +266,25 @@ Improved audit readiness.
 
 ---
 
-# Decision 9 — Simulated Findings During Initial Development
+# Decision 9 — Removed Simulated Findings
 
 ## Context
+Initial implementation used hardcoded finding identifiers
+(S3-001, SAST-001, SAST-002, SAST-003) to validate governance
+and enrichment logic before scanner normalization was complete.
 
-Governance and enrichment workflows were developed before complete scanner normalization.
+## Current State — RESOLVED
+All hardcoded findings removed as of [date].
+enrich.py now reads from:
+- findings/opa_findings.json     (OPA/Conftest output)
+- findings/sast_findings.json    (Semgrep output)
+- findings/sca_findings.json     (pip-audit output)
+- findings/secrets_raw.json      (detect-secrets output)
 
-## Decision
-
-Use predefined finding identifiers.
-
-Example:
-
-```text
-S3-001
-SAST-001
-SAST-002
-SAST-003
-```
-
-## Rationale
-
-Allowed independent validation of governance and enrichment logic.
-
-## Tradeoffs
-
-### Accepted
-
-Reduced realism during early implementation.
-
-### Future Direction
-
-Replace simulated findings with normalized scanner outputs.
+## Outcome
+Gate output now reflects real scanner findings:
+S3-001 from OPA, 3 SAST findings from Semgrep,
+11 CVEs from pip-audit, SECRET-001 from detect-secrets.
 
 ---
 
@@ -432,21 +419,6 @@ PASS / FAIL
 ```
 
 ---
-
-# Future Architectural Improvements
-
-1. Normalize real scanner outputs into a common schema.
-2. Remove hardcoded findings.
-3. Generate pull request security reports.
-4. Store findings history for trend analysis.
-5. Add risk scoring and prioritization.
-6. Add security metrics dashboard.
-7. Support additional scanners.
-8. Introduce approval workflows for high-risk suppressions.
-
-These improvements would move the platform closer to production-grade security governance.
-
-
 
 
 ## Decision: Step ordering in policy-as-code job
