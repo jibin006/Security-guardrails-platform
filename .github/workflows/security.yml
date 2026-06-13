@@ -116,6 +116,16 @@ jobs:
             --output findings/sast_findings.json \
             scripts/vulnerable_app.py || true
 
+      - name: Debug SAST Output
+        if: always()
+        run: |
+          echo "=== FILES ==="
+          find findings -type f
+
+          echo ""
+          echo "=== sast_findings.json ==="
+          cat findings/sast_findings.json || echo "FILE NOT FOUND"      
+
       - name: Validate SAST Findings
         run: |
           python scripts/check_sast.py
