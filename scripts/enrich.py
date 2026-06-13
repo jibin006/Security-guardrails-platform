@@ -1,81 +1,91 @@
-import yaml
 import json
+import os
 import sys
-from datetime import date
 
-def load_catalog():
-    with open("remediation/remediation_catalog.yaml") as f:
-        return yaml.safe_load(f)
+os.makedirs("findings", exist_ok=True)
 
-def load_suppressions():
+# Load suppressions
+suppressed_ids = []
+try:
+    with open("findings/valid_suppressions.json") as f:
+        suppressed_ids = json.load(f)
+except Exception as e:
+    print(f"Warning: could not load suppressions: {e}")
+
+
+def load_findings():
+    findings = []
+
     try:
-        with open("findings/valid_suppressions.json") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return []
+        with open("findings/opa_findings.json") as f:
+            data = json.load(f)
+            findings.extend(data.get("findings", []))
+            print(f"OPA findings loaded: {data.get('findings', [])}")
+    except Exception as e:
+        print(f"Warning: opa_findings.json not found: {e}")
 
-def enrich_finding(finding_id, catalog, suppressions):
-    info = catalog.get(finding_id, {})
-    suppressed = finding_id in suppressions
-    
-    return {
-        "id": finding_id,
-        "title": info.get("title", "Unknown Finding"),
-        "severity": info.get("severity", "UNKNOWN"),
-        "risk": info.get("risk", "").strip(),
-        "fix": info.get("fix", "").strip(),
-        "reference": info.get("reference", ""),
-        "standard": info.get("standard", ""),
-        "suppressed": suppressed,
-        "status": "SUPPRESSED" if suppressed else "OPEN",
-        "generated_date": str(date.today())
-    }
+    try:
+        with open("findings/sast_findings.json") as f:
+            raw = json.load(f)
+            ids = [r.get("check_id", f"SAST-{i:03d}") for i, r in enumerate(raw.get("results", []), 1)]
+            findings.extend(ids)
+            print(f"SAST findings loaded: {ids}")
+    except Exception as e:
+        print(f"Warning: sast_findings.json not found: {e}")
 
-def print_enriched(finding):
-    status_label = "[SUPPRESSED]" if finding["suppressed"] else "[OPEN]"
-    print(f"\n{'='*60}")
-    print(f"Finding: {finding['id']} {status_label}")
-    print(f"{'='*60}")
-    print(f"Title:     {finding['title']}")
-    print(f"Severity:  {finding['severity']}")
-    print(f"Status:    {finding['status']}")
-    print(f"Standard:  {finding['standard']}")
-    print(f"\nRisk:")
-    print(f"  {finding['risk'][:120]}")
-    print(f"\nFix:")
-    print(f"  {finding['fix'][:120]}")
-    print(f"\nReference: {finding['reference']}")
-    print()
+    try:
+        with open("findings/sca_findings.json") as f:
+            raw = json.load(f)
+            ids = []
+            for i, dep in enumerate(raw.get("dependencies", []), 1):
+                for vuln in dep.get("vulns", []):
+                    ids.append(f"SCA-{i:03d}-{vuln.get('id', 'UNKNOWN')}")
+            findings.extend(ids)
+            print(f"SCA findings loaded: {ids}")
+    except Exception as e:
+        print(f"Warning: sca_findings.json not found: {e}")
 
-# Simulate findings from all scanners
-raw_findings = ["S3-001", "SAST-001", "SAST-002", "SAST-003"]
+    try:
+        with open("findings/secrets_raw.json") as f:
+            raw = json.load(f)
+            results = raw.get("results", {})
+            ids = [f"SECRET-{i:03d}" for i in range(1, len(results) + 1)]
+            findings.extend(ids)
+            print(f"Secrets findings loaded: {ids}")
+    except Exception as e:
+        print(f"Warning: secrets_raw.json not found: {e}")
 
-catalog = load_catalog()
-suppressions = load_suppressions()
+    return findings
+
+
+raw_findings = load_findings()
 
 enriched = []
 blocked = []
 
 for fid in raw_findings:
-    finding = enrich_finding(fid, catalog, suppressions)
-    enriched.append(finding)
-    print_enriched(finding)
-    
-    if not finding["suppressed"] and finding["severity"] in ["HIGH", "CRITICAL"]:
+    suppressed = fid in suppressed_ids
+    severity = "HIGH"  # Default; extend with real severity mapping per scanner
+
+    entry = {
+        "id": fid,
+        "suppressed": suppressed,
+        "severity": severity
+    }
+
+    enriched.append(entry)
+
+    status = "SUPPRESSED" if suppressed else "OPEN"
+    print(f"Finding: {fid} [{status}]")
+
+    if not suppressed:
         blocked.append(fid)
 
-# Write findings inventory
+# Write enriched findings for security gate
 with open("findings/findings.json", "w") as f:
     json.dump(enriched, f, indent=2)
 
-print(f"\n[SUMMARY]")
-print(f"  Total findings:   {len(enriched)}")
-print(f"  Suppressed:       {len([f for f in enriched if f['suppressed']])}")
-print(f"  Open:             {len([f for f in enriched if not f['suppressed']])}")
-print(f"  Blocking build:   {len(blocked)}")
-
-if blocked:
-    print(f"\n[FAIL] Build blocked by: {', '.join(blocked)}")
-    sys.exit(1)
-
-print("\n[PASS] No blocking findings")
+print("\nEnrichment complete")
+print(f"Total findings: {len(enriched)}")
+print(f"Suppressed: {len(enriched) - len(blocked)}")
+print(f"Open: {len(blocked)}")

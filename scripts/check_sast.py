@@ -1,24 +1,21 @@
 import json
-import sys
+import os
+
+os.makedirs("findings", exist_ok=True)
 
 with open("findings/sast_findings.json") as f:
-    data = json.load(f)
+    raw = json.load(f)
 
-findings = data.get("results", [])
-errors = [f for f in findings if f.get("extra", {}).get("severity") == "ERROR"]
+findings = [r.get("check_id", f"SAST-{i:03d}") for i, r in enumerate(raw.get("results", []), 1)]
 
-print(f"\n[SAST] {len(findings)} finding(s) detected ({len(errors)} ERROR severity)\n")
+summary = {
+    "scanner": "sast",
+    "count": len(findings),
+    "findings": findings
+}
 
-for finding in findings:
-    print(f"  Rule:     {finding['check_id']}")
-    print(f"  File:     {finding['path']}")
-    print(f"  Line:     {finding['start']['line']}")
-    print(f"  Severity: {finding['extra']['severity']}")
-    print(f"  Message:  {finding['extra']['message'][:80]}")
-    print()
+with open("findings/sast_summary.json", "w") as f:
+    json.dump(summary, f, indent=2)
 
-if errors:
-    print("[FAIL] ERROR severity findings detected. Fix before merge.")
-    sys.exit(1)
-
-print("[PASS] No ERROR severity SAST findings")
+print(f"SAST: {len(findings)} findings detected")
+print(json.dumps(summary, indent=2))

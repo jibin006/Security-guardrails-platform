@@ -1,21 +1,22 @@
 import json
-import sys
+import os
+
+os.makedirs("findings", exist_ok=True)
 
 with open("findings/secrets_raw.json") as f:
-    data = json.load(f)
+    raw = json.load(f)
 
-results = data.get("results", {})
-total_secrets = sum(len(v) for v in results.values())
+results = raw.get("results", {})
+findings = list(results.keys())
 
-if total_secrets > 0:
-    print(f"\n[FAIL] {total_secrets} secret(s) detected:\n")
-    for filepath, secrets in results.items():
-        for secret in secrets:
-            print(f"  File: {filepath}")
-            print(f"  Type: {secret['type']}")
-            print(f"  Line: {secret['line_number']}")
-            print()
-    sys.exit(1)
-else:
-    print("[PASS] No secrets detected")
-    
+summary = {
+    "scanner": "secrets",
+    "count": len(findings),
+    "findings": [f"SECRET-{i:03d}" for i in range(1, len(findings) + 1)]
+}
+
+with open("findings/secrets_summary.json", "w") as f:
+    json.dump(summary, f, indent=2)
+
+print(f"Secrets: {len(findings)} findings detected")
+print(json.dumps(summary, indent=2))

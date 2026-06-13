@@ -1,31 +1,25 @@
 import json
-import sys
+import os
 
-try:
-    with open("findings/sca_findings.json") as f:
-        data = json.load(f)
-except FileNotFoundError:
-    print("[FAIL] Dependency findings file missing")
-    sys.exit(1)
+os.makedirs("findings", exist_ok=True)
 
-vulnerabilities = data.get("dependencies", [])
-critical_count = 0
+with open("findings/sca_findings.json") as f:
+    raw = json.load(f)
 
-print(f"\n[SCA] Dependency scan results:\n")
+vulns = raw.get("dependencies", [])
+findings = []
+for i, dep in enumerate(vulns, 1):
+    for vuln in dep.get("vulns", []):
+        findings.append(f"SCA-{i:03d}-{vuln.get('id', 'UNKNOWN')}")
 
-for dep in vulnerabilities:
-    vulns = dep.get("vulns", [])
-    if vulns:
-        for vuln in vulns:
-            severity = vuln.get("fix_versions", [])
-            print(f"  Package: {dep['name']}=={dep['version']}")
-            print(f"  CVE:     {vuln['id']}")
-            print(f"  Fix:     Upgrade to {vuln.get('fix_versions', ['unknown'])[0] if vuln.get('fix_versions') else 'no fix available'}")
-            print()
-            critical_count += 1
+summary = {
+    "scanner": "sca",
+    "count": len(findings),
+    "findings": findings
+}
 
-if critical_count > 0:
-    print(f"[FAIL] {critical_count} vulnerable package(s) detected.")
-    sys.exit(1)
+with open("findings/sca_summary.json", "w") as f:
+    json.dump(summary, f, indent=2)
 
-print("[PASS] No vulnerable dependencies detected")
+print(f"SCA: {len(findings)} findings detected")
+print(json.dumps(summary, indent=2))
