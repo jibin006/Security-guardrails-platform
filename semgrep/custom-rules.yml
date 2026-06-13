@@ -1,0 +1,28 @@
+rules:
+
+  - id: SAST-001-command-injection
+    patterns:
+      - pattern: subprocess.run($X, shell=True)
+    message: >
+      SAST-001: Command injection risk. User input passed to shell=True.
+      Fix: Avoid shell=True or sanitize input.
+    languages: [python]
+    severity: ERROR
+
+  - id: SAST-002-eval-injection
+    patterns:
+      - pattern: eval($X)
+    message: >
+      SAST-002: Code injection via eval(). Never pass untrusted input to eval().
+      Fix: Remove eval() or use ast.literal_eval() for safe parsing.
+    languages: [python]
+    severity: ERROR
+
+  - id: SAST-003-pickle-deserialization
+    patterns:
+      - pattern: pickle.loads($X)
+    message: >
+      SAST-003: Unsafe deserialization. pickle.loads() on untrusted data allows
+      arbitrary code execution. Fix: Use json or safer serialization formats.
+    languages: [python]
+    severity: WARNING

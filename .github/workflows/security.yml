@@ -3,6 +3,7 @@ name: Security Guardrails Platform
 on:
   push:
     branches: ["**"]
+
   pull_request:
     branches: ["main"]
 
@@ -31,7 +32,8 @@ jobs:
         run: python scripts/tf_to_json.py
 
       - name: Run OPA Policy Check
-        run: conftest test terraform/plan.json --policy policies/
+        run: |
+          conftest test terraform/plan.json --policy policies/
 
   secrets-detection:
     name: Secrets Detection
@@ -47,15 +49,50 @@ jobs:
           python-version: "3.11"
 
       - name: Install detect-secrets
-        run: pip install detect-secrets
+        run: |
+          pip install detect-secrets
+
+      - name: Create Findings Directory
+        run: mkdir -p findings
 
       - name: Scan for Secrets
         run: |
-          mkdir -p findings
-
           detect-secrets scan . \
             --exclude-files '\.secrets\.baseline' \
             > findings/secrets_raw.json
 
       - name: Validate Secret Findings
-        run: python scripts/check_secrets.py
+        run: |
+          python scripts/check_secrets.py
+
+  sast:
+    name: SAST Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Semgrep
+        run: |
+          pip install semgrep
+
+      - name: Create Findings Directory
+        run: mkdir -p findings
+
+      - name: Run Semgrep
+        run: |
+          semgrep \
+            --config semgrep/custom-rules.yml \
+            --json \
+            --output findings/sast_findings.json \
+            scripts/vulnerable_app.py
+
+      - name: Validate SAST Findings
+        run: |
+          python scripts/check_sast.py
