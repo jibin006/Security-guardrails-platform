@@ -62,9 +62,15 @@ terraform_config = {
                     }
                 ]
             }
-        }
+        },
 
         # LOG-001 fires because aws_cloudtrail is intentionally absent
+        "aws_cloudtrail": {
+           "main": {
+             "name": "org-trail",
+             "s3_bucket_name": "log-bucket"
+            }
+        }
     }
 }
 
