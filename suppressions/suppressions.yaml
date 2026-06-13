@@ -8,6 +8,7 @@ suppressions:
     owner: platform-team
     reason: "Testing suppression without ticket"
     expiry: "2027-01-01"
-     : security-team
+    approver: security-team
     approved_date: "2025-07-01"
-    # ticket field intentionally missing
+  # ticket field intentionally missing
+    
