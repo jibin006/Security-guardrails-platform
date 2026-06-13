@@ -164,6 +164,7 @@ jobs:
     runs-on: ubuntu-latest
 
     needs:
+      - policy-as-code
       - secrets-detection
       - sast
       - dependency-scan
@@ -181,6 +182,25 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install pyyaml
+
+      - name: Create Findings Directory
+        run: |
+          mkdir -p findings
+
+      - name: Download Valid Suppressions
+        uses: actions/download-artifact@v4
+        with:
+          name: valid-suppressions
+          path: findings
+
+      - name: Debug Suppression File
+        run: |
+          echo "=== FILES ==="
+          find findings -type f
+
+          echo ""
+          echo "=== CONTENT ==="
+          cat findings/valid_suppressions.json
 
       - name: Enrich Findings
         run: |
