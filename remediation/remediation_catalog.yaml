@@ -195,3 +195,5 @@ SAST-003:
     internal artifacts only.
   reference: "https://bandit.readthedocs.io/"
   standard: "OWASP-A08"  
+
+  
