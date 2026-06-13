@@ -37,9 +37,16 @@ def load_findings():
         with open("findings/sca_findings.json") as f:
             raw = json.load(f)
             ids = []
-            for i, dep in enumerate(raw.get("dependencies", []), 1):
+            seen = set()
+            counter = 1
+            for dep in raw.get("dependencies", []):
                 for vuln in dep.get("vulns", []):
-                    ids.append(f"SCA-{i:03d}-{vuln.get('id', 'UNKNOWN')}")
+                    vuln_id = vuln.get("id", "UNKNOWN")
+                    finding_id = f"SCA-{counter:03d}-{vuln_id}"
+                    if vuln_id not in seen:
+                        seen.add(vuln_id)
+                        ids.append(finding_id)
+                        counter += 1
             findings.extend(ids)
             print(f"SCA findings loaded: {ids}")
     except Exception as e:
