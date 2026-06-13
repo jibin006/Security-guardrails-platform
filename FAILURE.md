@@ -419,6 +419,82 @@ Exceptions should be narrowly scoped, documented, approved, and time-bound.
 
 ---
 
+# Failure 13 — Step Ordering: Debug Ran Before Conftest
+
+## Problem
+opa_findings.json was always empty despite OPA running successfully.
+
+## Root Cause
+Debug Conftest Output and Generate OPA Findings steps were placed
+BEFORE Run OPA Policy Check in the workflow. GitHub Actions executes
+steps sequentially. conftest_raw.json did not exist when
+generate_opa_findings.py ran because conftest had not executed yet.
+
+## Resolution
+Reordered steps:
+Generate Terraform JSON → Run OPA Policy Check → Debug Conftest Output
+→ Generate OPA Findings → Upload OPA Findings
+
+## Lesson
+In GitHub Actions, a file produced by step N cannot be read by step N-1.
+Step ordering is execution ordering. Always place debug steps after
+the step that produces the file being debugged.
+
+---
+
+# Failure 14 — Artifact Not Found: sast-findings
+
+## Problem
+remediation-enrichment failed with:
+Error: Unable to download artifact(s): Artifact not found for name: sast-findings
+
+## Root Cause
+The SAST job found violations. This caused a downstream step to be
+marked as failed. GitHub Actions skips all subsequent steps in a job
+when a step fails — unless if: always() is set. The Upload SAST Findings
+step was missing if: always(), so it was skipped when semgrep found
+violations. The artifact was never created.
+
+## Resolution
+Added if: always() to every scanner upload step.
+
+## Lesson
+if: always() is required on artifact upload steps in security pipelines.
+Scanners that find violations must still publish their findings.
+Without it, artifacts only exist when there are no findings — which
+inverts the purpose of the pipeline.
+
+---
+
+# Failure 15 — SCA Finding ID Duplication
+
+## Problem
+Blocking list contained duplicate CVE entries:
+SCA-001-PYSEC-2023-192 appeared twice
+SCA-001-PYSEC-2023-212 appeared twice
+
+## Root Cause
+enrich.py used the dependency index i as the finding number prefix.
+Multiple vulnerabilities in the same dependency all received SCA-001-*
+as their prefix. The same CVE appearing in multiple dependencies
+generated duplicate IDs.
+
+## Resolution
+Replaced dependency index with a global counter across all dependencies.
+Added deduplication using a seen set keyed on vuln_id.
+
+counter = 1
+for dep in dependencies:
+    for vuln in dep.vulns:
+        if vuln_id not in seen:
+            findings.append(f"SCA-{counter:03d}-{vuln_id}")
+            counter += 1
+
+## Lesson
+Finding IDs must be globally unique across the entire findings set.
+Using a loop index that resets per dependency produces collisions
+when multiple findings share the same parent.
+
 # Key Engineering Lessons
 
 1. Security controls must fail closed.
