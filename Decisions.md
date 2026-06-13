@@ -477,27 +477,36 @@ Mitigated by debug step that prints opa_findings.json after generation.
 
 ## Stage 5 Metrics — Break Test Results
 
-Date: [today]
+Date: 2026-06-13
 
-### Suppression Governance
-- Invalid suppression rejection rate: 2/2 (100%)
-- Valid suppression pass-through rate: 1/1 (100%)
-- Schema enforcement: owner, approver, ticket, expiry all enforced
+### Finding Coverage
+Total findings detected: 22
+- OPA/Conftest: 6 (IAM-001, IAM-002, LOG-001, S3-001, S3-002, SG-001)
+- Semgrep SAST: 3 (SAST-001, SAST-002, SAST-003)
+- pip-audit SCA: 11 (SCA-001 through SCA-011, real CVEs)
+- detect-secrets: 2 (SECRET-001, SECRET-002)
 
-### OPA Policy Coverage
-- Policies tested for precision (no FP on compliant resource): 6/6
-- Policies tested for recall (fires on violation): 6/6
-- False positive rate: 0%
+Active suppressions: 1 (SAST-003, ticket SEC-1847, expires 2027-03-01)
+Blocking findings: 21
 
-### Artifact Flow
-- if: always() required for artifact upload when scanner finds violations: confirmed
-- Recovery from missing if: always(): 1 line, 1 push
+### Suppression Governance Accuracy
+- Missing ticket rejected: ✅ (Test 1a)
+- Expired suppression rejected: ✅ (Test 1b)
+- Valid suppression applied: ✅ (Test 1c — SAST-003 [SUPPRESSED])
+- Governance accuracy: 3/3 (100%)
+
+### OPA Policy Precision
+- CloudTrail policy: fires on absence, silent when resource present ✅
+- S3 encryption policy: fires on missing config, silent when present ✅
+- IAM wildcard policy: fires on Action=*, silent on specific action ✅
+- False positive rate: 0% — no policy fires on compliant resource
+
+### SCA Deduplication
+- 11 unique CVE IDs from urllib3==1.25.4
+- No duplicate finding IDs under repeated runs
+- Global counter produces SCA-001 through SCA-011 with no collisions
 
 ### Gate Behavior
-- Suppression takes precedence over severity threshold: confirmed
-- CRITICAL-only threshold: 4 blocking findings
-- HIGH+ threshold: 21 blocking findings
-
-### Finding ID Uniqueness
-- SCA deduplication holds under duplicate CVE input: confirmed
-- No two findings share the same ID across 22 total findings
+- Suppression takes precedence over severity threshold: ✅
+- SAST-003 suppressed regardless of gate threshold setting
+- Single exit point confirmed: only security_gate.py calls sys.exit(1)
