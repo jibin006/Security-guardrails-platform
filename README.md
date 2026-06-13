@@ -1,24 +1,42 @@
-# security-guardrails-platform
 # Security Guardrails Platform
 
-A build-focused security pipeline that enforces infrastructure, application, dependency, and secrets controls on every commit. Detection is separated from decision. Scanners publish findings as artifacts. A dedicated security gate owns the block decision.
-
-Built as a hands-on demonstration of shift-left security engineering — not scanner integration, but a platform that manages detection, governance, enrichment, and enforcement as independent concerns.
+A policy-as-code security pipeline that enforces infrastructure, application, dependency, and secrets controls on every commit. Built to demonstrate that detection and decision are separate engineering concerns — scanners publish findings as artifacts, a suppression governance layer validates exceptions, and a dedicated security gate owns the block decision.
 
 ---
 
 ## What This Platform Enforces
 
-| Scanner | Control | Finding IDs |
-|---------|---------|-------------|
-| OPA/Conftest | S3 bucket encryption required | S3-001 |
-| Semgrep | Command injection via `shell=True` | SAST-001 |
-| Semgrep | Code injection via `eval()` | SAST-002 |
-| Semgrep | Unsafe pickle deserialization | SAST-003 |
-| pip-audit | Known CVEs in Python dependencies | SCA-001 through SCA-011 |
-| detect-secrets | Hardcoded AWS credentials | SECRET-001 |
+### Infrastructure (OPA/Conftest — 6 Rego Policies)
 
-**Standards coverage:** OWASP A03, SOC2-CC6.1, SOC2-CC6.3, NIST-SI-2
+| Finding ID | Policy | Resource | Standard |
+|------------|--------|----------|----------|
+| S3-001 | S3 bucket missing encryption | `aws_s3_bucket` | SOC2-CC6.1 |
+| S3-002 | S3 bucket public read access | `aws_s3_bucket` | SOC2-CC6.6 |
+| IAM-001 | IAM policy contains wildcard action | `aws_iam_policy` | SOC2-CC6.1 |
+| IAM-002 | Root user access key detected | `aws_iam_access_key` | SOC2-CC6.2 |
+| SG-001 | Security group exposes SSH to internet | `aws_security_group` | NIST-AC-4 |
+| LOG-001 | CloudTrail not configured | absence of `aws_cloudtrail` | SOC2-CC7.2 |
+
+### Application (Semgrep — 3 Custom Rules)
+
+| Finding ID | Rule | Pattern | Severity |
+|------------|------|---------|----------|
+| SAST-001 | Command injection | `subprocess.run($X, shell=True)` | ERROR |
+| SAST-002 | Code injection | `eval($X)` | ERROR |
+| SAST-003 | Unsafe deserialization | `pickle.loads($X)` | WARNING |
+
+### Dependencies (pip-audit)
+
+| Finding ID | Control |
+|------------|---------|
+| SCA-001 through SCA-011 | 11 real CVEs in `urllib3==1.25.4` including CVE-2024-37891, CVE-2025-50181, CVE-2026-21441 |
+
+### Secrets (detect-secrets)
+
+| Finding ID | Control |
+|------------|---------|
+| SECRET-001 | Hardcoded AWS access key in `insecure.tf` |
+| SECRET-002 | Hardcoded root access key pattern in `insecure.tf` |
 
 ---
 
@@ -28,7 +46,7 @@ Built as a hands-on demonstration of shift-left security engineering — not sca
 ┌─────────────────────────────────────────┐
 │           SOURCE CONTROL                │
 │  insecure.tf        vulnerable_app.py   │
-│  suppressions.yaml  policies/s3.rego    │
+│  suppressions.yaml  policies/*.rego     │
 │  semgrep/custom-rules.yml               │
 │  requirements.txt                       │
 └────────────────┬────────────────────────┘
@@ -41,7 +59,7 @@ Built as a hands-on demonstration of shift-left security engineering — not sca
 │  detect-secrets→ secrets_raw.json       │
 │  pip-audit     → sca_findings.json      │
 │                                         │
-│  All jobs use if: always() on upload    │
+│  if: always() on every upload step      │
 │  Scanners never own the exit decision   │
 └────────────────┬────────────────────────┘
                  │ actions/upload-artifact
@@ -91,41 +109,48 @@ Built as a hands-on demonstration of shift-left security engineering — not sca
 
 ## Real Pipeline Output
 
-From a live run against the intentionally vulnerable targets in this repository:
+Live run against the intentionally vulnerable targets in this repository:
 
 ```
-Finding: S3-001                          [OPEN]
-Finding: semgrep.SAST-001-command-injection  [OPEN]
-Finding: semgrep.SAST-002-eval-injection     [OPEN]
+Finding: IAM-001                              [OPEN]
+Finding: IAM-002                              [OPEN]
+Finding: LOG-001                              [OPEN]
+Finding: S3-001                               [OPEN]
+Finding: S3-002                               [OPEN]
+Finding: SG-001                               [OPEN]
+Finding: semgrep.SAST-001-command-injection   [OPEN]
+Finding: semgrep.SAST-002-eval-injection      [OPEN]
 Finding: semgrep.SAST-003-pickle-deserialization [SUPPRESSED]
-Finding: SCA-001-PYSEC-2021-108          [OPEN]
-Finding: SCA-002-PYSEC-2020-149          [OPEN]
-Finding: SCA-003-PYSEC-2020-148          [OPEN]
-Finding: SCA-004-PYSEC-2023-192          [OPEN]
-Finding: SCA-005-PYSEC-2023-212          [OPEN]
-Finding: SCA-006-PYSEC-2026-141          [OPEN]
-Finding: SCA-007-CVE-2024-37891          [OPEN]
-Finding: SCA-008-CVE-2025-50181          [OPEN]
-Finding: SCA-009-CVE-2025-66418          [OPEN]
-Finding: SCA-010-CVE-2025-66471          [OPEN]
-Finding: SCA-011-CVE-2026-21441          [OPEN]
-Finding: SECRET-001                      [OPEN]
+Finding: SCA-001-PYSEC-2021-108               [OPEN]
+Finding: SCA-002-PYSEC-2020-149               [OPEN]
+Finding: SCA-003-PYSEC-2020-148               [OPEN]
+Finding: SCA-004-PYSEC-2023-192               [OPEN]
+Finding: SCA-005-PYSEC-2023-212               [OPEN]
+Finding: SCA-006-PYSEC-2026-141               [OPEN]
+Finding: SCA-007-CVE-2024-37891               [OPEN]
+Finding: SCA-008-CVE-2025-50181               [OPEN]
+Finding: SCA-009-CVE-2025-66418               [OPEN]
+Finding: SCA-010-CVE-2025-66471               [OPEN]
+Finding: SCA-011-CVE-2026-21441               [OPEN]
+Finding: SECRET-001                           [OPEN]
+Finding: SECRET-002                           [OPEN]
 
-Total findings: 16
-Suppressed: 1 (SAST-003 — SEC-1847, approved by security-team, expires 2027-03-01)
-Open: 15
+Total findings: 22
+Suppressed: 1 (SAST-003 — ticket SEC-1847, approved by security-team, expires 2027-03-01)
+Open: 21
 
-[FAIL] Build blocked by: S3-001, semgrep.SAST-001-command-injection,
-semgrep.SAST-002-eval-injection, SCA-001 through SCA-011, SECRET-001
+[FAIL] Build blocked by: IAM-001, IAM-002, LOG-001, S3-001, S3-002, SG-001,
+semgrep.SAST-001-command-injection, semgrep.SAST-002-eval-injection,
+SCA-001 through SCA-011, SECRET-001, SECRET-002
 ```
 
 ---
 
 ## Suppression Governance
 
-Suppressions are not scanner tuning. They are documented risk acceptance decisions.
+Suppressions are documented risk acceptance decisions, not scanner configuration.
 
-Every suppression requires:
+Every entry requires all six fields or it is rejected at governance time:
 
 ```yaml
 - id: SAST-003
@@ -140,218 +165,135 @@ Every suppression requires:
   ticket: "SEC-1847"
 ```
 
-Missing any field → suppression rejected at governance stage.
-Expired suppression → finding returns to OPEN, gate blocks.
+**Enforcement rules:**
+- Missing any field → suppression rejected, finding remains OPEN
+- Expired suppression → finding returns to OPEN automatically
+- Permanent suppressions not permitted — every entry requires an expiry date
 
 ---
 
 ## Remediation Catalog
 
-Each finding ID maps to structured remediation guidance:
+Every finding ID maps to structured remediation guidance covering severity, risk, fix, Terraform/code example, and compliance standard mapping.
 
-**S3-001 — S3 Bucket Encryption Missing** `SOC2-CC6.1`
-```hcl
-resource "aws_s3_bucket_server_side_encryption_configuration" "example" {
-  bucket = aws_s3_bucket.demo.id
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
-```
+| Finding | Title | Severity | Standard |
+|---------|-------|----------|----------|
+| S3-001 | S3 Bucket Encryption Missing | HIGH | SOC2-CC6.1 |
+| S3-002 | S3 Bucket Public Access Enabled | CRITICAL | SOC2-CC6.6 |
+| IAM-001 | IAM Policy Contains Wildcard Permissions | HIGH | SOC2-CC6.1 |
+| IAM-002 | Root Access Key Usage Detected | CRITICAL | SOC2-CC6.2 |
+| SG-001 | Security Group Allows Public SSH Access | HIGH | NIST-AC-4 |
+| LOG-001 | CloudTrail Not Configured | HIGH | SOC2-CC7.2 |
+| SAST-001 | Command Injection via subprocess | HIGH | OWASP-A03 |
+| SAST-002 | Code Injection via eval() | HIGH | OWASP-A03 |
+| SAST-003 | Unsafe Deserialization via pickle.loads() | MEDIUM | OWASP-A08 |
+| SECRET-001/002 | Hardcoded AWS Credentials | CRITICAL | SOC2-CC6.3 |
+| SCA-001–011 | Vulnerable Dependency Detected | HIGH | NIST-SI-2 |
 
-**SAST-001 — Command Injection** `OWASP-A03`
-Remove `shell=True`. Pass arguments as a list. Validate all input before system calls.
-
-**SAST-002 — eval() Code Injection** `OWASP-A03`
-Remove `eval()`. Use `ast.literal_eval()` for safe literal parsing.
-
-**SECRET-001 — Hardcoded AWS Credentials** `SOC2-CC6.3`
-Remove immediately. Rotate in AWS IAM. Use environment variables or AWS Secrets Manager.
-
-**SCA-001 — Vulnerable Dependency** `NIST-SI-2`
-Upgrade to fixed version per CVE advisory. Pin version in `requirements.txt`.
-
----
-
-## OPA Policy — Infrastructure as Code Enforcement
-
-```rego
-package main
-
-deny contains msg if {
-    resource := input.resource.aws_s3_bucket[_]
-    not resource.server_side_encryption_configuration
-    msg := sprintf(
-        "S3-001: S3 bucket '%v' missing encryption configuration",
-        [resource.bucket]
-    )
-}
-```
-
-Policy is evaluated against `terraform/plan.json` using Conftest v0.68.2.
-Failures are parsed into structured finding IDs and published as artifacts.
-
----
-
-## Semgrep Custom Rules
-
-Three rules targeting high-severity Python vulnerabilities:
-
-```yaml
-SAST-001-command-injection    subprocess.run($X, shell=True)   ERROR
-SAST-002-eval-injection       eval($X)                         ERROR
-SAST-003-pickle-deserialization pickle.loads($X)               WARNING
-```
-
-Rules are version-controlled alongside the codebase. Violations produce
-finding IDs that flow through governance before reaching the gate.
+Full catalog: [remediation/remediation_catalog.yaml](./remediation/remediation_catalog.yaml)
 
 ---
 
 ## Key Architectural Decisions
 
 **Scanners never own the exit decision.**
-If a scanner calls `sys.exit(1)` on findings, its artifact upload is skipped.
-The artifact only exists when there are no findings — inverting the pipeline's purpose.
-Solution: `if: always()` on every upload step. Gate owns the only `sys.exit(1)`.
+If a scanner calls `sys.exit(1)` on findings, GitHub Actions skips all subsequent steps including artifact upload. The artifact only exists when there are no findings — inverting the pipeline's purpose. Solution: `if: always()` on every upload step. The security gate is the only job that calls `sys.exit(1)`.
 
 **Enrichment exits 0 always.**
-Enrichment is a data transformation step. If enrichment fails the build,
-`findings.json` is never written, the gate never runs, and no findings are published.
-Detection and decision are separate concerns.
+Enrichment is a data transformation step. If enrichment fails the build, `findings.json` is never written, the gate never runs, and no findings are published. Detection and decision are separate concerns with separate ownership.
 
 **Artifacts are the contract between jobs.**
-GitHub Actions jobs run on isolated ephemeral runners. Files do not persist.
-`upload-artifact` and `download-artifact` are the only mechanism for passing
-state between jobs. Every scanner publishes its output regardless of exit code.
+GitHub Actions jobs run on isolated ephemeral runners. Files written in one job do not exist in another. `upload-artifact` and `download-artifact` are the only mechanism for passing state between jobs. Every scanner publishes its output regardless of exit code.
+
+**Step ordering is execution ordering.**
+Debug and generate steps placed before the step that produces their input file will always see an empty or missing file. A file produced by step N is not available to step N-1. Discovered during build — documented in FAILURES.md entry 13.
 
 **Suppression is governance, not configuration.**
-Suppressions require owner, approver, ticket reference, expiry date, and documented reason.
-A suppression without a ticket is rejected. An expired suppression returns the finding
-to OPEN. Permanent exceptions are not permitted.
+Suppressions require owner, approver, ticket reference, expiry date, and documented reason. A suppression without a ticket is rejected at governance time. An expired suppression returns the finding to OPEN at the next run.
+
+Full decision log: [DECISIONS.md](./DECISIONS.md)
 
 ---
 
 ## Repository Structure
 
 ```
-├── .github/workflows/security.yml   # Pipeline definition
-├── policies/s3.rego                 # OPA infrastructure policy
-├── semgrep/custom-rules.yml         # SAST custom rules
-├── suppressions/suppressions.yaml   # Suppression registry
+├── .github/workflows/security.yml        # Pipeline — 7 jobs
+├── policies/
+│   ├── s3.rego                           # S3-001: encryption required
+│   ├── s3_public_access.rego             # S3-002: no public ACL
+│   ├── iam_wildcard.rego                 # IAM-001: no wildcard actions
+│   ├── root_access_key.rego              # IAM-002: no root access keys
+│   ├── security_group_ssh.rego           # SG-001: no SSH to 0.0.0.0/0
+│   └── cloudtrail_enabled.rego           # LOG-001: CloudTrail required
+├── semgrep/custom-rules.yml              # SAST-001/002/003 custom rules
+├── suppressions/suppressions.yaml        # Suppression registry
 ├── remediation/remediation_catalog.yaml  # Remediation guidance per finding
 ├── scripts/
-│   ├── tf_to_json.py                # Terraform plan serializer
-│   ├── generate_opa_findings.py     # Conftest output parser
-│   ├── check_sast.py                # SAST findings normalizer
-│   ├── check_secrets.py             # Secrets findings normalizer
-│   ├── check_dependencies.py        # SCA findings normalizer
-│   ├── validate_suppressions.py     # Suppression governance enforcer
-│   ├── enrich.py                    # Findings enrichment engine
-│   └── security_gate.py             # Gate — owns exit decision
-├── terraform/insecure.tf            # Intentionally vulnerable IaC
-├── scripts/vulnerable_app.py        # Intentionally vulnerable Python
-├── FAILURES.md                      # Build failures and root causes
-└── DECISIONS.md                     # Architectural decisions and tradeoffs
+│   ├── tf_to_json.py                     # Terraform plan serializer
+│   ├── generate_opa_findings.py          # Conftest output parser
+│   ├── check_sast.py                     # SAST findings normalizer
+│   ├── check_secrets.py                  # Secrets findings normalizer
+│   ├── check_dependencies.py             # SCA findings normalizer
+│   ├── validate_suppressions.py          # Suppression governance enforcer
+│   ├── enrich.py                         # Findings enrichment engine
+│   └── security_gate.py                  # Gate — single exit point
+├── terraform/insecure.tf                 # Intentionally vulnerable IaC
+├── scripts/vulnerable_app.py             # Intentionally vulnerable Python
+├── FAILURES.md                           # 15 real build failures + root causes
+└── DECISIONS.md                          # 12 architectural decisions + tradeoffs
 ```
 
 ---
 
-## What Is Intentionally Vulnerable
+## Intentionally Vulnerable Targets
 
-This repository contains deliberately insecure code for pipeline validation:
+This repository contains deliberately insecure resources to validate pipeline detection:
 
-`terraform/insecure.tf` — S3 bucket without encryption (triggers S3-001)
-`scripts/vulnerable_app.py` — `subprocess.run(shell=True)`, `eval()`, `pickle.loads()` (triggers SAST-001, SAST-002, SAST-003)
-`requirements.txt` — Pinned to `urllib3==1.25.4` with 11 known CVEs (triggers SCA-001 through SCA-011)
+**`terraform/insecure.tf`**
+- S3 bucket without encryption → S3-001
+- S3 bucket with `acl = "public-read"` → S3-002
+- IAM policy with `Action = "*"` → IAM-001
+- `aws_iam_access_key` with `user = "root"` → IAM-002
+- Security group with port 22 open to `0.0.0.0/0` → SG-001
+- No `aws_cloudtrail` resource → LOG-001
+- Hardcoded AWS key patterns → SECRET-001, SECRET-002
 
-These are not accidents. They are the test corpus that proves the pipeline catches real vulnerabilities.
+**`scripts/vulnerable_app.py`**
+- `subprocess.run(user_input, shell=True)` → SAST-001
+- `eval(user_input)` → SAST-002
+- `pickle.loads(data)` → SAST-003
+
+**`requirements.txt`**
+- `urllib3==1.25.4` — 11 known CVEs → SCA-001 through SCA-011
+
+These are the test corpus that proves the pipeline catches real vulnerabilities across all four scanner categories.
 
 ---
 
-## Known Gaps and Planned Improvements
+## Known Gaps
 
 | Gap | Impact | Priority |
 |-----|--------|----------|
-| Only 1 Rego policy (S3 encryption) | OPA coverage limited to one control | High |
-| Severity hardcoded to HIGH in enrich.py | Gate cannot distinguish CRITICAL vs MEDIUM | High |
-| No suppression expiry enforcement at gate runtime | Expired suppressions not rechecked until validate_suppressions runs | Medium |
-| Secret finding lacks file path and line number | SECRET-001 has no location context | Medium |
+| Severity hardcoded to HIGH in enrich.py | Gate cannot distinguish CRITICAL vs MEDIUM per finding | High |
+| No suppression expiry recheck at gate runtime | Expired suppressions not caught until next suppression-validation run | Medium |
+| Secret findings lack file path and line number | SECRET-001/002 have no location context in enriched output | Medium |
 | No findings history or trend tracking | Cannot measure FP rate or MTTD over time | Low |
+| tf_to_json.py is a simulator not a real parser | Does not parse actual HCL — plan.json is hand-authored | Low |
 
 ---
 
 ## Build Failures Encountered
 
-Twelve real failures documented during this build. Selected highlights:
+15 real failures documented during this build. Three most instructive:
 
-**Step ordering (opa_findings.json always empty):** Debug and generate steps placed before conftest executed. Files produced by step N are not available to step N-1. Fixed by reordering steps.
+**Step ordering — opa_findings.json always empty**
+Debug and generate steps placed before conftest executed. Files produced by step N are not available to step N-1. Fixed by reordering steps within the job.
 
-**Artifact not found (sast-findings):** Missing `if: always()` on upload step. When semgrep found violations, the upload was skipped. Artifact only existed when there were no findings.
+**Artifact not found — sast-findings**
+Missing `if: always()` on upload step. When semgrep found violations, the upload was skipped. Artifact only existed when there were no findings — inverting the pipeline's purpose.
 
-**SCA duplicate finding IDs:** Used dependency loop index as finding number prefix. Multiple CVEs in the same dependency received identical IDs. Fixed with global counter and `seen` set deduplication.
+**SCA duplicate finding IDs**
+Dependency loop index used as finding number prefix. Multiple CVEs in the same dependency received identical IDs. Fixed with global counter and `seen` set deduplication.
 
-Full failure log: [FAILURES.md](./FAILURES.md)
-Full decision log: [DECISIONS.md](./DECISIONS.md)
-
-
-
-
-
-
-```
-┌─────────────────────────────────────────┐
-│           SOURCE CONTROL                │
-│  insecure.tf  vulnerable_app.py         │
-│  suppressions.yaml  policies/*.rego     │
-│  semgrep/custom-rules.yml               │
-│  requirements.txt                       │
-└────────────────┬────────────────────────┘
-                 │ git push
-                 ▼
-┌─────────────────────────────────────────┐
-│           SCANNER LAYER                 │
-│  OPA/Conftest  → opa_findings.json      │  ⚠️ 1 policy, needs 6
-│  Semgrep       → sast_findings.json     │  ✅
-│  detect-secrets→ secrets_raw.json       │  ✅
-│  pip-audit     → sca_findings.json      │  ✅
-└────────────────┬────────────────────────┘
-                 │ actions/upload-artifact
-                 │ if: always()
-                 ▼
-┌─────────────────────────────────────────┐
-│         ARTIFACT STORAGE                │
-│  GitHub Actions Artifacts               │  ✅
-└────────────────┬────────────────────────┘
-                 │ actions/download-artifact
-                 ▼
-┌─────────────────────────────────────────┐
-│       SUPPRESSION GOVERNANCE            │
-│  validate_suppressions.py               │
-│  suppressions.yaml → valid_suppres.json │  ⚠️ no expiry enforcement
-└────────────────┬────────────────────────┘
-                 │
-                 ▼
-┌─────────────────────────────────────────┐
-│       REMEDIATION ENRICHMENT            │
-│  enrich.py                              │
-│  loads all findings + suppressions      │
-│  marks OPEN / SUPPRESSED                │  ⚠️ severity hardcoded HIGH
-│  writes findings.json                   │
-│  exits 0 always                         │  ✅
-└────────────────┬────────────────────────┘
-                 │ upload enriched-findings
-                 ▼
-┌─────────────────────────────────────────┐
-│           SECURITY GATE                 │
-│  security_gate.py                       │
-│  blocks on HIGH/CRITICAL unsuppressed   │  ✅
-│  owns sys.exit(1)                       │  ✅
-└────────────────┬────────────────────────┘
-                 │
-        ┌────────┴────────┐
-        ▼                 ▼
-      PASS              FAIL
-```
+Full failure log with root causes: [FAILURES.md](./FAILURES.md)
