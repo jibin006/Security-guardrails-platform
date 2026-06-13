@@ -10,5 +10,5 @@ suppressions:
     expiry: "2027-01-01"
     approver: security-team
     approved_date: "2025-07-01"
-  # ticket field intentionally missing
+    ticket : ""
     
