@@ -153,11 +153,20 @@ jobs:
         run: |
           python scripts/validate_suppressions.py
 
+      - name: Upload Valid Suppressions
+        uses: actions/upload-artifact@v4
+        with:
+          name: valid-suppressions
+          path: findings/valid_suppressions.json
+
   remediation-enrichment:
     name: Remediation Enrichment
     runs-on: ubuntu-latest
 
     needs:
+      - secrets-detection
+      - sast
+      - dependency-scan
       - suppression-validation
 
     steps:
