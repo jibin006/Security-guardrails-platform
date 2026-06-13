@@ -36,7 +36,7 @@ terraform_config = {
                     "Statement": [
                         {
                             "Effect": "Allow",
-                            "Action": "*",
+                            "Action": "s3:GetObject",
                             "Resource": "*"
                         }
                     ]
