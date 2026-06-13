@@ -13,9 +13,16 @@ terraform_config = {
             },
             # S3-002 — Public read access
             "public_bucket": {
-                "bucket": "my-public-bucket",
-                "acl": "public-read"
+            "bucket": "my-public-bucket",
+             "acl": "public-read",
+             "server_side_encryption_configuration": {
+             "rule": {
+            "apply_server_side_encryption_by_default": {
+                "sse_algorithm": "AES256"
             }
+        }
+    }
+}
         },
 
         # IAM-001 — Wildcard action in policy
