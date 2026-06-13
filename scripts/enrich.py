@@ -34,23 +34,27 @@ def load_findings():
         print(f"Warning: sast_findings.json not found: {e}")
 
     try:
-        with open("findings/sca_findings.json") as f:
-            raw = json.load(f)
-            ids = []
-            seen = set()
-            counter = 1
-            for dep in raw.get("dependencies", []):
-                for vuln in dep.get("vulns", []):
-                    vuln_id = vuln.get("id", "UNKNOWN")
-                    finding_id = f"SCA-{counter:03d}-{vuln_id}"
-                    if vuln_id not in seen:
-                        seen.add(vuln_id)
-                        ids.append(finding_id)
-                        counter += 1
-            findings.extend(ids)
-            print(f"SCA findings loaded: {ids}")
+      with open("findings/sast_findings.json") as f:
+        raw = json.load(f)
+
+        mapping = {
+            "semgrep.SAST-001-command-injection": "SAST-001",
+            "semgrep.SAST-002-eval-injection": "SAST-002",
+            "semgrep.SAST-003-pickle-deserialization": "SAST-003"
+        }
+
+        ids = []
+
+        for result in raw.get("results", []):
+            check_id = result.get("check_id", "UNKNOWN")
+            ids.append(mapping.get(check_id, check_id))
+
+        findings.extend(ids)
+
+        print(f"SAST findings loaded: {ids}")
+
     except Exception as e:
-        print(f"Warning: sca_findings.json not found: {e}")
+       print(f"Warning: sast_findings.json not found: {e}")
 
     try:
         with open("findings/secrets_raw.json") as f:
