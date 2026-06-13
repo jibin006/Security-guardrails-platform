@@ -7,7 +7,7 @@ def validate_suppressions(suppression_file):
         data = yaml.safe_load(f)
 
     suppressions = data.get("suppressions", [])
-    required_fields = ["id", "owner", "reason", "expiry", "approver"]
+    required_fields = ["id", "owner", "reason", "expiry", "approver", "ticket"]
     
     errors = []
     valid = {}
