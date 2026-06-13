@@ -67,3 +67,131 @@ SCA-001:
     Pin dependency versions in requirements.txt after upgrade.
   reference: "https://pypi.org/project/pip-audit/"
   standard: "NIST-SI-2"
+
+S3-002:
+  title: S3 Bucket Public Access Enabled
+  severity: CRITICAL
+  risk: >
+    Publicly accessible S3 buckets may expose sensitive data to
+    unauthorized users on the internet. Misconfigured bucket ACLs
+    are a common cause of large-scale data breaches.
+  fix: >
+    Remove public-read or public-read-write ACLs. Enable S3 Block Public
+    Access settings and restrict bucket access using IAM policies
+    and bucket policies based on least privilege.
+  example: |
+    resource "aws_s3_bucket_public_access_block" "example" {
+      bucket = aws_s3_bucket.demo.id
+
+      block_public_acls       = true
+      block_public_policy     = true
+      ignore_public_acls      = true
+      restrict_public_buckets = true
+    }
+  reference: "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html"
+  standard: "SOC2-CC6.6"
+
+IAM-001:
+  title: IAM Policy Contains Wildcard Permissions
+  severity: HIGH
+  risk: >
+    Wildcard permissions violate least privilege principles and may
+    grant excessive access to AWS resources. If compromised, an
+    attacker can abuse broad permissions to escalate privileges or
+    access sensitive resources.
+  fix: >
+    Replace wildcard actions with explicitly required permissions.
+    Scope permissions to specific AWS services and resources whenever
+    possible.
+  example: |
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "s3:GetObject",
+            "s3:PutObject"
+          ],
+          "Resource": "arn:aws:s3:::example-bucket/*"
+        }
+      ]
+    }
+  reference: "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html"
+  standard: "SOC2-CC6.1"
+
+SG-001:
+  title: Security Group Allows Public SSH Access
+  severity: HIGH
+  risk: >
+    Exposing SSH (port 22) to the internet significantly increases
+    attack surface and enables credential stuffing, brute force,
+    and exploitation attempts against exposed hosts.
+  fix: >
+    Restrict SSH access to trusted IP ranges, VPN endpoints, or
+    bastion hosts. Avoid using 0.0.0.0/0 for administrative access.
+  example: |
+    ingress {
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = ["10.0.0.0/16"]
+    }
+  reference: "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-groups.html"
+  standard: "NIST-AC-4"
+
+LOG-001:
+  title: CloudTrail Not Configured
+  severity: HIGH
+  risk: >
+    Without CloudTrail, security teams lose visibility into API
+    activity, authentication events, resource changes, and potential
+    compromise indicators. Incident response becomes significantly
+    more difficult.
+  fix: >
+    Enable AWS CloudTrail across all regions and configure log
+    delivery to a protected S3 bucket. Enable log validation and
+    integrate logs with centralized monitoring systems.
+  example: |
+    resource "aws_cloudtrail" "main" {
+      name                          = "organization-trail"
+      s3_bucket_name                = aws_s3_bucket.logs.id
+      include_global_service_events = true
+      is_multi_region_trail         = true
+      enable_log_file_validation    = true
+    }
+  reference: "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-user-guide.html"
+  standard: "SOC2-CC7.2"
+
+IAM-002:
+  title: Root Access Key Usage Detected
+  severity: CRITICAL
+  risk: >
+    Root account credentials provide unrestricted access to the AWS
+    account. Compromise of root access keys can result in complete
+    account takeover and destruction of critical infrastructure.
+  fix: >
+    Remove root access keys immediately. Use IAM users, roles,
+    federation, and temporary credentials instead. Enable MFA on
+    the root account and restrict its use to emergency situations.
+  example: |
+    # Root account should have:
+    # - No active access keys
+    # - MFA enabled
+    # - No programmatic access
+  reference: "https://docs.aws.amazon.com/IAM/latest/UserGuide/root-user-best-practices.html"
+  standard: "SOC2-CC6.2"
+
+SAST-003:
+  title: Unsafe Deserialization via pickle.loads()
+  severity: MEDIUM
+  risk: >
+    Deserializing untrusted data using pickle.loads() may allow
+    arbitrary code execution. Attackers can craft malicious payloads
+    that execute commands during deserialization.
+  fix: >
+    Avoid pickle for untrusted data. Use safer formats such as JSON,
+    validate input sources, and restrict deserialization to trusted
+    internal artifacts only.
+  reference: "https://bandit.readthedocs.io/"
+  standard: "OWASP-A08"  
