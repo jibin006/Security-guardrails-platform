@@ -1,11 +1,11 @@
 import json
 import os
-import sys
 
 os.makedirs("findings", exist_ok=True)
 
 # Load suppressions
 suppressed_ids = []
+
 try:
     with open("findings/valid_suppressions.json") as f:
         suppressed_ids = json.load(f)
@@ -16,26 +16,24 @@ except Exception as e:
 def load_findings():
     findings = []
 
+    # OPA Findings
     try:
         with open("findings/opa_findings.json") as f:
             data = json.load(f)
-            findings.extend(data.get("findings", []))
-            print(f"OPA findings loaded: {data.get('findings', [])}")
+
+            ids = data.get("findings", [])
+
+            findings.extend(ids)
+
+            print(f"OPA findings loaded: {ids}")
+
     except Exception as e:
         print(f"Warning: opa_findings.json not found: {e}")
 
+    # SAST Findings (Normalized)
     try:
         with open("findings/sast_findings.json") as f:
             raw = json.load(f)
-            ids = [r.get("check_id", f"SAST-{i:03d}") for i, r in enumerate(raw.get("results", []), 1)]
-            findings.extend(ids)
-            print(f"SAST findings loaded: {ids}")
-    except Exception as e:
-        print(f"Warning: sast_findings.json not found: {e}")
-
-    try:
-      with open("findings/sast_findings.json") as f:
-        raw = json.load(f)
 
         mapping = {
             "semgrep.SAST-001-command-injection": "SAST-001",
@@ -46,25 +44,71 @@ def load_findings():
         ids = []
 
         for result in raw.get("results", []):
-            check_id = result.get("check_id", "UNKNOWN")
-            ids.append(mapping.get(check_id, check_id))
+            check_id = result.get("check_id")
+
+            canonical_id = mapping.get(check_id)
+
+            if canonical_id:
+                ids.append(canonical_id)
 
         findings.extend(ids)
 
         print(f"SAST findings loaded: {ids}")
 
     except Exception as e:
-       print(f"Warning: sast_findings.json not found: {e}")
+        print(f"Warning: sast_findings.json not found: {e}")
 
+    # SCA Findings
+    try:
+        with open("findings/sca_findings.json") as f:
+            raw = json.load(f)
+
+        ids = []
+        seen = set()
+        counter = 1
+
+        for dep in raw.get("dependencies", []):
+            for vuln in dep.get("vulns", []):
+
+                vuln_id = vuln.get("id", "UNKNOWN")
+
+                if vuln_id not in seen:
+                    seen.add(vuln_id)
+
+                    finding_id = f"SCA-{counter:03d}-{vuln_id}"
+
+                    ids.append(finding_id)
+
+                    counter += 1
+
+        findings.extend(ids)
+
+        print(f"SCA findings loaded: {ids}")
+
+    except Exception as e:
+        print(f"Warning: sca_findings.json not found: {e}")
+
+    # Secrets Findings
     try:
         with open("findings/secrets_raw.json") as f:
             raw = json.load(f)
-            results = raw.get("results", {})
-            ids = [f"SECRET-{i:03d}" for i in range(1, len(results) + 1)]
-            findings.extend(ids)
-            print(f"Secrets findings loaded: {ids}")
+
+        results = raw.get("results", {})
+
+        ids = [
+            f"SECRET-{i:03d}"
+            for i in range(1, len(results) + 1)
+        ]
+
+        findings.extend(ids)
+
+        print(f"Secrets findings loaded: {ids}")
+
     except Exception as e:
         print(f"Warning: secrets_raw.json not found: {e}")
+
+    # Global Deduplication
+    findings = list(dict.fromkeys(findings))
 
     return findings
 
@@ -75,8 +119,10 @@ enriched = []
 blocked = []
 
 for fid in raw_findings:
+
     suppressed = fid in suppressed_ids
-    severity = "HIGH"  # Default; extend with real severity mapping per scanner
+
+    severity = "HIGH"
 
     entry = {
         "id": fid,
@@ -87,12 +133,12 @@ for fid in raw_findings:
     enriched.append(entry)
 
     status = "SUPPRESSED" if suppressed else "OPEN"
+
     print(f"Finding: {fid} [{status}]")
 
     if not suppressed:
         blocked.append(fid)
 
-# Write enriched findings for security gate
 with open("findings/findings.json", "w") as f:
     json.dump(enriched, f, indent=2)
 
