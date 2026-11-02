@@ -322,5 +322,23 @@ jobs:
           name: enriched-findings
           path: findings
 
-      - name: Security Decision
-        run: python scripts/security_gate.py
+      - name: Assert vulnerable fixtures are blocked
+        shell: bash
+        run: |
+          set +e
+          output="$(python scripts/security_gate.py 2>&1)"
+          status=$?
+          set -e
+
+          printf '%s\\n' "$output"
+
+          # The repository intentionally supplies known vulnerable fixtures.
+          # Exit 1 is expected only when the gate emits its explicit block result.
+          if [ "$status" -eq 1 ] && grep -q "\\[FAIL\\] Build blocked by:" <<< "$output"; then
+            echo "[PASS] Negative security test: vulnerable fixtures were blocked."
+            exit 0
+          fi
+
+          echo "[FAIL] Expected the security gate to block the vulnerable fixtures."
+          echo "[FAIL] Gate exit code: $status"
+          exit 1

@@ -5,10 +5,11 @@ from datetime import date
 
 # Findings that can never be suppressed regardless of ticket or approver
 NEVER_SUPPRESS = [
-    "IAM-002",                           # Root access key — account takeover risk
-    "semgrep.SAST-001-command-injection", # RCE — no compensating control acceptable
-    "SECRET-001",                         # Hardcoded credentials — immediate rotation required
-    "SECRET-002",                         # Hardcoded credentials — immediate rotation required
+    "IAM-002",          # Root access key — account takeover risk
+    "SAST-001",         # Canonical ID emitted by the findings enrichment stage
+    "semgrep.SAST-001-command-injection",  # Backward-compatible raw Semgrep rule ID
+    "SECRET-001",       # Hardcoded credentials — immediate rotation required
+    "SECRET-002",       # Hardcoded credentials — immediate rotation required
 ]
 
 def validate_suppressions(suppression_file):
